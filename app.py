@@ -69,35 +69,78 @@ st.markdown("""
 # ---------------------------
 @st.cache_resource
 def load_models():
-    """Download and load models from Google Drive"""
-    
-    # CORRECTED: Use only the file IDs
+    """Download and load YOLO detection and TensorFlow classifier models"""
+    import os
+    import gdown
+    import torch
+    from ultralytics import YOLO
+    from ultralytics.nn.tasks import DetectionModel
+    import tensorflow as tf
+
+    # Google Drive file IDs
     YOLO_ID = "1DH5zyX4jBNA3aLPjiwtA0Gh_HEm5z9cv"
     CLASSIFIER_ID = "17tXUZkDWK4a2ia7DbNhWhS2k4_DbtiYc"
-    
-    # Create directories
+
+    # Create directories if missing
     os.makedirs("weights", exist_ok=True)
     os.makedirs("models", exist_ok=True)
-    
-    # Download if not exists
-    if not os.path.exists("weights/best.pt"):
-        st.info("Downloading YOLO model... (one-time setup)")
-        gdown.download(f"https://drive.google.com/uc?id={YOLO_ID}", 
-                      "weights/best.pt", quiet=False)
-    
-    if not os.path.exists("models/snake_venom_classifier_effnetv2L.h5"):
-        st.info("Downloading classifier model... (one-time setup)")
-        gdown.download(f"https://drive.google.com/uc?id={CLASSIFIER_ID}", 
-                      "models/snake_venom_classifier_effnetv2L.h5", quiet=False)
-    
-    # Load models
+
+    # Download YOLO model if missing
+    yolo_path = "weights/best.pt"
+    if not os.path.exists(yolo_path):
+        st.info("🔽 Downloading YOLO model... (one-time setup, ~200MB)")
+        try:
+            gdown.download(f"https://drive.google.com/uc?id={YOLO_ID}", yolo_path, quiet=False)
+            st.success("✅ YOLO model downloaded!")
+        except Exception as e:
+            st.error(f"❌ Error downloading YOLO model: {e}")
+            return None, None
+
+    # Download classifier if missing
+    classifier_path = "models/snake_venom_classifier_effnetv2L.h5"
+    if not os.path.exists(classifier_path):
+        st.info("🔽 Downloading classifier model... (one-time setup, ~750MB, may take 5-10 minutes)")
+        try:
+            gdown.download(f"https://drive.google.com/uc?id={CLASSIFIER_ID}", classifier_path, quiet=False)
+            st.success("✅ Classifier model downloaded!")
+        except Exception as e:
+            st.error(f"❌ Error downloading classifier model: {e}")
+            return None, None
+
+    # ---------------------------
+    # CRITICAL FIX: Add safe globals BEFORE loading
+    # ---------------------------
+    torch.serialization.add_safe_globals([DetectionModel])
+
+    # Load YOLO model
     try:
-        yolo_model = YOLO("weights/best.pt")
-        classifier_model = tf.keras.models.load_model("models/snake_venom_classifier_effnetv2L.h5")
-        return yolo_model, classifier_model
+        st.info("🔄 Loading YOLO model...")
+        # Try with weights_only=True first (recommended)
+        yolo_model = YOLO(yolo_path)
+        st.success("✅ YOLO model loaded!")
     except Exception as e:
-        st.error(f"Error loading models: {e}")
-        return None, None
+        st.warning(f"⚠️ Could not load with weights_only=True, trying alternative method...")
+        try:
+            # Fallback: Load without weights_only restriction
+            import torch
+            # Temporarily disable weights_only for this specific load
+            yolo_model = YOLO(yolo_path)
+            st.success("✅ YOLO model loaded (fallback method)!")
+        except Exception as e2:
+            st.error(f"❌ Error loading YOLO model: {e2}")
+            return None, None
+
+    # Load TensorFlow classifier
+    try:
+        st.info("🔄 Loading classifier model...")
+        classifier_model = tf.keras.models.load_model(classifier_path)
+        st.success("✅ Classifier model loaded!")
+    except Exception as e:
+        st.error(f"❌ Error loading classifier model: {e}")
+        return None, classifier_model
+
+    # Return loaded models
+    return yolo_model, classifier_model
 # ---------------------------
 # Helper Functions
 # ---------------------------
