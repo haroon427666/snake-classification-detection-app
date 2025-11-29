@@ -12,6 +12,11 @@ from io import BytesIO
 import zipfile
 from datetime import datetime
 
+
+# Classification and Detection Classes
+CLASSIFICATION_CLASSES = ["non-venomous", "venomous"]
+DETECTION_CLASSES = ["snake"]
+
 # ---------------------------
 # Page Configuration
 # ---------------------------
@@ -64,23 +69,35 @@ st.markdown("""
 # ---------------------------
 @st.cache_resource
 def load_models():
-    """Load YOLO and Classification models"""
+    """Download and load models from Google Drive"""
+    
+    # CORRECTED: Use only the file IDs
+    YOLO_ID = "1DH5zyX4jBNA3aLPjiwtA0Gh_HEm5z9cv"
+    CLASSIFIER_ID = "17tXUZkDWK4a2ia7DbNhWhS2k4_DbtiYc"
+    
+    # Create directories
+    os.makedirs("weights", exist_ok=True)
+    os.makedirs("models", exist_ok=True)
+    
+    # Download if not exists
+    if not os.path.exists("weights/best.pt"):
+        st.info("Downloading YOLO model... (one-time setup)")
+        gdown.download(f"https://drive.google.com/uc?id={YOLO_ID}", 
+                      "weights/best.pt", quiet=False)
+    
+    if not os.path.exists("models/snake_venom_classifier_effnetv2L.h5"):
+        st.info("Downloading classifier model... (one-time setup)")
+        gdown.download(f"https://drive.google.com/uc?id={CLASSIFIER_ID}", 
+                      "models/snake_venom_classifier_effnetv2L.h5", quiet=False)
+    
+    # Load models
     try:
-        # Update these paths for deployment
-        DETECTION_MODEL = "weights/best.pt"  # Place in weights folder
-        CLASSIFICATION_MODEL = "models/snake_venom_classifier_effnetv2L.h5"  # Place in models folder
-        
-        yolo_model = YOLO(DETECTION_MODEL)
-        classifier_model = tf.keras.models.load_model(CLASSIFICATION_MODEL)
+        yolo_model = YOLO("weights/best.pt")
+        classifier_model = tf.keras.models.load_model("models/snake_venom_classifier_effnetv2L.h5")
         return yolo_model, classifier_model
     except Exception as e:
         st.error(f"Error loading models: {e}")
-        st.info("Please ensure model files are in the correct directories:\n- weights/best.pt\n- models/snake_venom_classifier_effnetv2L.h5")
         return None, None
-
-CLASSIFICATION_CLASSES = ["non-venomous", "venomous"]
-DETECTION_CLASSES = ["snake"]
-
 # ---------------------------
 # Helper Functions
 # ---------------------------
