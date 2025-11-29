@@ -11,7 +11,10 @@ import json
 from io import BytesIO
 import zipfile
 from datetime import datetime
-
+import gdown
+import torch
+from ultralytics.nn.tasks import DetectionModel
+import keras
 
 # Classification and Detection Classes
 CLASSIFICATION_CLASSES = ["non-venomous", "venomous"]
@@ -70,13 +73,6 @@ st.markdown("""
 @st.cache_resource
 def load_models():
     """Download and load YOLO detection and TensorFlow classifier models"""
-    import os
-    import gdown
-    import torch
-    from ultralytics import YOLO
-    from ultralytics.nn.tasks import DetectionModel
-    import tensorflow as tf
-
     # Google Drive file IDs
     YOLO_ID = "1DH5zyX4jBNA3aLPjiwtA0Gh_HEm5z9cv"
     CLASSIFIER_ID = "17tXUZkDWK4a2ia7DbNhWhS2k4_DbtiYc"
@@ -107,39 +103,57 @@ def load_models():
             st.error(f"❌ Error downloading classifier model: {e}")
             return None, None
 
-    # ---------------------------
-    # CRITICAL FIX: Add safe globals BEFORE loading
-    # ---------------------------
+    # Add safe globals for YOLO
     torch.serialization.add_safe_globals([DetectionModel])
 
     # Load YOLO model
     try:
         st.info("🔄 Loading YOLO model...")
-        # Try with weights_only=True first (recommended)
         yolo_model = YOLO(yolo_path)
         st.success("✅ YOLO model loaded!")
     except Exception as e:
-        st.warning(f"⚠️ Could not load with weights_only=True, trying alternative method...")
-        try:
-            # Fallback: Load without weights_only restriction
-            import torch
-            # Temporarily disable weights_only for this specific load
-            yolo_model = YOLO(yolo_path)
-            st.success("✅ YOLO model loaded (fallback method)!")
-        except Exception as e2:
-            st.error(f"❌ Error loading YOLO model: {e2}")
-            return None, None
+        st.error(f"❌ Error loading YOLO model: {e}")
+        return None, None
 
-    # Load TensorFlow classifier
+    # Load TensorFlow classifier with compatibility fix
     try:
         st.info("🔄 Loading classifier model...")
-        classifier_model = tf.keras.models.load_model(classifier_path)
+        
+        # Custom InputLayer to handle old batch_shape parameter
+        from tensorflow.keras import layers
+        
+        class CustomInputLayer(layers.InputLayer):
+            def __init__(self, batch_shape=None, input_shape=None, **kwargs):
+                # Convert old batch_shape to new input_shape format
+                if batch_shape is not None and input_shape is None:
+                    input_shape = batch_shape[1:]  # Remove batch dimension
+                # Remove batch_shape from kwargs to avoid passing it to parent
+                kwargs.pop('batch_shape', None)
+                super().__init__(input_shape=input_shape, **kwargs)
+        
+        # Register custom object
+        custom_objects = {'InputLayer': CustomInputLayer}
+        
+        # Load model with custom objects
+        classifier_model = tf.keras.models.load_model(
+            classifier_path,
+            custom_objects=custom_objects,
+            compile=False
+        )
+        
+        # Recompile
+        classifier_model.compile(
+            optimizer='adam',
+            loss='categorical_crossentropy',
+            metrics=['accuracy']
+        )
+        
         st.success("✅ Classifier model loaded!")
     except Exception as e:
         st.error(f"❌ Error loading classifier model: {e}")
-        return None, classifier_model
+        st.error(f"Full error: {str(e)}")
+        return yolo_model, None
 
-    # Return loaded models
     return yolo_model, classifier_model
 # ---------------------------
 # Helper Functions
