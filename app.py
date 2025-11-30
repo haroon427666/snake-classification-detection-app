@@ -15,6 +15,9 @@ import gdown
 
 CLASSIFICATION_CLASSES = ["Non-Venomous", "Venomous"]
 
+# For your detection model (YOLO)
+DETECTION_CLASSES = ["snake"]
+
 # ---------------------------
 # Page Configuration
 # ---------------------------
