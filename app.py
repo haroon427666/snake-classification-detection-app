@@ -11,6 +11,7 @@ import json
 from io import BytesIO
 import zipfile
 from datetime import datetime
+import gdown
 
 # ---------------------------
 # Page Configuration
@@ -64,23 +65,36 @@ st.markdown("""
 # ---------------------------
 @st.cache_resource
 def load_models():
-    """Load YOLO and Classification models"""
     try:
-        # Update these paths for deployment
-        DETECTION_MODEL = "weights/best.pt"  # Place in weights folder
-        CLASSIFICATION_MODEL = "models/snake_venom_classifier_effnetv2L.h5"  # Place in models folder
-        
+        # Google Drive direct download URLs
+        YOLO_DRIVE_URL = "https://drive.google.com/uc?export=download&id=1DH5zyX4jBNA3aLPjiwtA0Gh_HEm5z9cv"
+        CLASSIFIER_DRIVE_URL = "https://drive.google.com/uc?export=download&id=17tXUZkDWK4a2ia7DbNhWhS2k4_DbtiYc"
+
+        # Local paths
+        DETECTION_MODEL = "weights/best.pt"
+        CLASSIFICATION_MODEL = "models/snake_venom_classifier_effnetv2L.h5"
+
+        # Ensure directories exist
+        os.makedirs("weights", exist_ok=True)
+        os.makedirs("models", exist_ok=True)
+
+        # Download if missing
+        if not os.path.exists(DETECTION_MODEL):
+            st.warning("Downloading YOLO detection model (this may take a while)...")
+            gdown.download(YOLO_DRIVE_URL, DETECTION_MODEL, quiet=False)
+        if not os.path.exists(CLASSIFICATION_MODEL):
+            st.warning("Downloading classifier model (this may take a while)...")
+            gdown.download(CLASSIFIER_DRIVE_URL, CLASSIFICATION_MODEL, quiet=False)
+
+        # Load models
         yolo_model = YOLO(DETECTION_MODEL)
         classifier_model = tf.keras.models.load_model(CLASSIFICATION_MODEL)
         return yolo_model, classifier_model
+
     except Exception as e:
         st.error(f"Error loading models: {e}")
-        st.info("Please ensure model files are in the correct directories:\n- weights/best.pt\n- models/snake_venom_classifier_effnetv2L.h5")
+        st.info("Please ensure the Drive links are public and correct.")
         return None, None
-
-CLASSIFICATION_CLASSES = ["non-venomous", "venomous"]
-DETECTION_CLASSES = ["snake"]
-
 # ---------------------------
 # Helper Functions
 # ---------------------------
