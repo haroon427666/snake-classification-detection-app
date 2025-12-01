@@ -51,6 +51,7 @@ st.markdown("""
         margin: 1rem 0;
         text-align: center;
         font-size: 1.5rem;
+        color: #000000;
     }
     .venomous-box {
         background-color: #ffebee;
@@ -67,6 +68,13 @@ st.markdown("""
         border-radius: 0.5rem;
         margin: 1rem 0;
         text-align: center;
+    }
+    .github-link {
+        text-align: center;
+        margin-top: 2rem;
+        padding: 1rem;
+        background-color: #f0f2f6;
+        border-radius: 0.5rem;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -422,7 +430,7 @@ def main():
         "Detection Confidence Threshold",
         min_value=0.1,
         max_value=1.0,
-        value=0.25,
+        value=0.45,
         step=0.05,
         help="Minimum confidence for YOLO to detect a snake"
     )
@@ -436,11 +444,16 @@ def main():
     
     st.sidebar.markdown("---")
     st.sidebar.info(
-        "**Improved Pipeline:**\n"
-        "1. **Detect** snakes using YOLO first\n"
-        "2. **Only if snake detected** → Classify full image\n"
-        "3. **Draw** bounding boxes with classification\n\n"
-        "✅ No classification if no snake found!"
+        "**About This App:**\n\n"
+        "This AI-powered system detects snakes in images and classifies them as venomous or non-venomous. "
+        "Upload single or multiple images, or use your webcam for real-time detection."
+    )
+    
+    st.sidebar.markdown("---")
+    st.sidebar.markdown(
+        "**👨‍💻 Developer:**\n\n"
+        "Created by [Haroon](https://github.com/haroon427666)\n\n"
+        "🔗 [View Project Repository](https://github.com/haroon427666/snake-classification-detection-app)"
     )
     
     # ---------------------------
@@ -688,6 +701,16 @@ def main():
                     classification_placeholder.warning("🚫 No snake detected in frame")
             
             camera.release()
+    
+    # Footer with GitHub link
+    st.markdown("---")
+    st.markdown(
+        '<div class="github-link">'
+        '⭐ If you find this project useful, please star it on '
+        '<a href="https://github.com/haroon427666/snake-classification-detection-app" target="_blank">GitHub</a>!'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
 if __name__ == "__main__":
     main()
